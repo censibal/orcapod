@@ -11,11 +11,11 @@ use std::{
     result,
 };
 /// Shorthand for a Result that returns an `OrcaError`.
-pub(crate) type Result<T> = result::Result<T, OrcaError>;
+pub type Result<T> = result::Result<T, OrcaError>;
 
 /// Possible errors you may encounter.
 #[derive(Debug)]
-pub(crate) enum Kind {
+enum Kind {
     /// Returned if a file is not expected to exist.
     FileExists(PathBuf),
     /// Returned if a file is expected to have a parent.
@@ -40,6 +40,24 @@ pub(crate) enum Kind {
 #[derive(Debug)]
 pub struct OrcaError(Kind);
 impl Error for OrcaError {}
+impl OrcaError {
+    /// Error constructor for `FileExists`.
+    pub(crate) const fn file_exists(path: PathBuf) -> Self {
+        Self(Kind::FileExists(path))
+    }
+    /// Error constructor for `FileHasNoParent`.
+    pub const fn file_has_no_parent(path: PathBuf) -> Self {
+        Self(Kind::FileHasNoParent(path))
+    }
+    /// Error constructor for `NoAnnotationFound`.
+    pub(crate) const fn no_annotation_found(class: String, name: String, version: String) -> Self {
+        Self(Kind::NoAnnotationFound(class, name, version))
+    }
+    /// Error constructor for `NoRegexMatch`.
+    pub(crate) const fn no_regex_match() -> Self {
+        Self(Kind::NoRegexMatch)
+    }
+}
 impl Display for OrcaError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match &self.0 {
@@ -94,10 +112,5 @@ impl From<regex::Error> for OrcaError {
 impl From<io::Error> for OrcaError {
     fn from(error: io::Error) -> Self {
         Self(Kind::IoError(error))
-    }
-}
-impl From<Kind> for OrcaError {
-    fn from(error: Kind) -> Self {
-        Self(error)
     }
 }

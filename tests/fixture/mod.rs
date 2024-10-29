@@ -4,14 +4,12 @@
 )]
 
 use orcapod::{
-    error::OrcaError,
+    error::Result,
     model::{Annotation, Pod, StreamInfo},
     store::{filestore::LocalFileStore, Store},
 };
-use std::{collections::BTreeMap, fs, ops::Deref, path::PathBuf, result};
+use std::{collections::BTreeMap, fs, ops::Deref, path::PathBuf};
 use tempfile::tempdir;
-
-pub type Result<T> = result::Result<T, OrcaError>;
 
 pub fn pod_style() -> Result<Pod> {
     Pod::new(
