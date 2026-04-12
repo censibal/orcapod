@@ -14,7 +14,6 @@ from orcapod import (
     LocalDockerOrchestrator,
     LocalFileStore,
     PodJob,
-    Uri,
     Pod,
     Annotation,
 )
@@ -94,10 +93,7 @@ if __name__ == "__main__":
                 required_gpu=None,
             ),
             input_packet={},
-            output_dir=Uri(
-                namespace="default",
-                path=".",
-            ),
+            output_packet={},
             cpu_limit=1,
             memory_limit=10 << 20,
             env_vars=None,

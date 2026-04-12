@@ -124,10 +124,30 @@ pub fn pod_job_segment(namespace_lookup: &HashMap<String, PathBuf, RandomState>)
                 ]),
             ),
         ]),
-        URI {
-            namespace: "default".to_owned(),
-            path: PathBuf::from("output"),
-        },
+        HashMap::from([
+            (
+                "overlay_image1".to_owned(),
+                Blob {
+                    kind: BlobKind::File,
+                    location: URI {
+                        namespace: "default".to_owned(),
+                        path: PathBuf::from("output/overlay_image1.png"),
+                    },
+                    checksum: String::new(),
+                },
+            ),
+            (
+                "overlay_image2".to_owned(),
+                Blob {
+                    kind: BlobKind::File,
+                    location: URI {
+                        namespace: "default".to_owned(),
+                        path: PathBuf::from("output/overlay_image2.png"),
+                    },
+                    checksum: String::new(),
+                },
+            ),
+        ]),
         0.5,         // 500 millicores as frac cores
         2_u64 << 30, // 2GiB in bytes, KiB=<<10, MiB=<<20, GiB=<<30
         Some(HashMap::from([
@@ -184,10 +204,7 @@ pub fn pod_job_custom(
         None,
         Arc::new(pod.clone()),
         input_packet,
-        URI {
-            namespace: "default".to_owned(),
-            path: PathBuf::from("."),
-        },
+        HashMap::new(),
         1.0,          // 1000 millicores as frac cores
         50_u64 << 20, // 2GiB in bytes, KiB=<<10, MiB=<<20, GiB=<<30
         None,

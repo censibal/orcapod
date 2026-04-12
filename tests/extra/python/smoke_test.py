@@ -49,10 +49,7 @@ def create_pod_job(data, config):
         ),
         pod=data["pod"],
         input_packet={},
-        output_dir=Uri(
-            namespace="default",
-            path=".",
-        ),
+        output_packet={},
         cpu_limit=0.1,
         memory_limit=10 << 20,
         env_vars=None,

@@ -55,7 +55,7 @@ fn pod_to_yaml() -> Result<()> {
 fn hash_pod_job() -> Result<()> {
     assert_eq!(
         pod_job_segment(&NAMESPACE_LOOKUP_READ_ONLY)?.hash,
-        "31caf15566c088a39b7734b15c6005a449a967d4fe0aca403b6a78f4ced63de7",
+        "986c2f329350c5326f94f5135094e5e4b6c3e910a544ff88a1de82898a3072e4",
         "Hash didn't match."
     );
     Ok(())
@@ -86,9 +86,19 @@ fn pod_job_to_yaml() -> Result<()> {
                   namespace: default
                   path: overlay_rgb_configs/colorblind_friendly.csv
                 checksum: f78dfdfbdfd3ffec1e0731f155cb4293406d627928ea93df363a790eb3eaed38
-            output_dir:
-              namespace: default
-              path: output
+            output_packet:
+              overlay_image1:
+                kind: File
+                location:
+                  namespace: default
+                  path: output/overlay_image1.png
+                checksum: ''
+              overlay_image2:
+                kind: File
+                location:
+                  namespace: default
+                  path: output/overlay_image2.png
+                checksum: ''
             cpu_limit: 0.5
             memory_limit: 2147483648
             env_vars:
@@ -104,7 +114,7 @@ fn pod_job_to_yaml() -> Result<()> {
 fn hash_pod_result() -> Result<()> {
     assert_eq!(
         pod_result_segment(&NAMESPACE_LOOKUP_READ_ONLY)?.hash,
-        "00f0d08f438c2ad61984c81bd8208037f973de9dbb488569b6518501016664b3",
+        "b720b9f3e6442ed9d0fc9beef4da301c0683fd342446ad3f6b2b6e4c429b14e7",
         "Hash didn't match."
     );
     Ok(())
@@ -116,7 +126,7 @@ fn pod_result_to_yaml() -> Result<()> {
         to_yaml(&pod_result_segment(&NAMESPACE_LOOKUP_READ_ONLY)?)?,
         indoc! {"
             class: pod_result
-            pod_job: 31caf15566c088a39b7734b15c6005a449a967d4fe0aca403b6a78f4ced63de7
+            pod_job: 986c2f329350c5326f94f5135094e5e4b6c3e910a544ff88a1de82898a3072e4
             output_packet:
               overlay_image1:
                 kind: File

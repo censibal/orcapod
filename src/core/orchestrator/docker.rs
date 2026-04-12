@@ -2,7 +2,7 @@ use crate::{
     core::util::get,
     uniffi::{
         error::{Result, selector},
-        model::{packet::PathSet, pod::PodJob},
+        model::{packet::{BlobKind, PathSet}, pod::PodJob},
         orchestrator::{PodRunInfo, PodStatus, docker::LocalDockerOrchestrator},
     },
 };
@@ -34,22 +34,46 @@ pub static RE_IMAGE_TAG: LazyLock<Regex> = LazyLock::new(|| {
     .expect("Invalid image tag regex.")
 });
 
+/// Pre-creates the host-side path so Docker can bind-mount it with the correct type.
+fn prepare_host_output_path(host_path: &path::Path, kind: &BlobKind) -> Result<()> {
+    match kind {
+        BlobKind::File => {
+            if let Some(parent) = host_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            if !host_path.exists() {
+                fs::File::create(host_path)?;
+            }
+        }
+        BlobKind::Directory => fs::create_dir_all(host_path)?,
+    }
+    Ok(())
+}
+
 impl LocalDockerOrchestrator {
     fn prepare_mount_binds(
         namespace_lookup: &HashMap<String, PathBuf>,
         pod_job: &PodJob,
-    ) -> Result<(Vec<String>, [String; 1])> {
-        // all host mounted paths need to be absolute
-        let host_output_directory = path::absolute(
-            namespace_lookup[&pod_job.output_dir.namespace].join(&pod_job.output_dir.path),
-        )?;
-        // Ensure output directory exists to prevent permissions issues if daemon's owner is root
-        fs::create_dir_all(&host_output_directory)?;
-        let output_bind = [format!(
-            "{}:{}",
-            host_output_directory.to_string_lossy(),
-            pod_job.pod.output_dir.to_string_lossy(),
-        )];
+    ) -> Result<(Vec<String>, Vec<String>)> {
+        let output_binds = pod_job
+            .pod
+            .output_spec
+            .iter()
+            .map(|(key, path_info)| {
+                let blob = get(&pod_job.output_packet, key)?;
+                let host_path = path::absolute(
+                    get(namespace_lookup, &blob.location.namespace)?.join(&blob.location.path),
+                )?;
+                // Pre-create the host-side path so Docker can bind-mount it correctly.
+                prepare_host_output_path(&host_path, &blob.kind)?;
+                let container_path = pod_job.pod.output_dir.join(&path_info.path);
+                Ok(format!(
+                    "{}:{}",
+                    host_path.to_string_lossy(),
+                    container_path.to_string_lossy(),
+                ))
+            })
+            .collect::<Result<_>>()?;
         let input_binds = pod_job.pod.input_spec.iter().try_fold::<_, _, Result<_>>(
             vec![],
             |mut flattened_binds, (stream_name, stream_info)| {
@@ -95,7 +119,7 @@ impl LocalDockerOrchestrator {
                 Ok(flattened_binds)
             },
         )?;
-        Ok((input_binds, output_bind))
+        Ok((input_binds, output_binds))
     }
     #[expect(
         clippy::cast_possible_wrap,
@@ -117,7 +141,7 @@ impl LocalDockerOrchestrator {
         Config<String>,
     )> {
         // Prepare configuration
-        let (input_binds, output_bind) = Self::prepare_mount_binds(namespace_lookup, pod_job)?;
+        let (input_binds, output_binds) = Self::prepare_mount_binds(namespace_lookup, pod_job)?;
         let container_name =
             Generator::with_naming(Name::Plain)
                 .next()
@@ -156,7 +180,7 @@ impl LocalDockerOrchestrator {
                 host_config: Some(HostConfig {
                     nano_cpus: Some((pod_job.cpu_limit * 10_f32.powi(9)) as i64), // ncpu, ucores=3, mcores=6, cores=9
                     memory: Some(pod_job.memory_limit as i64),
-                    binds: Some([&*input_binds, &output_bind].concat()),
+                    binds: Some([&*input_binds, &*output_binds].concat()),
                     ..Default::default()
                 }),
                 labels: Some(labels),

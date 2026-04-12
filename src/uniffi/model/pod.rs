@@ -12,7 +12,7 @@ use crate::{
         error::{OrcaError, Result},
         model::{
             Annotation,
-            packet::{Blob, BlobKind, Packet, PathInfo, PathSet, URI},
+            packet::{Blob, BlobKind, Packet, PathInfo, PathSet},
         },
         orchestrator::PodStatus,
     },
@@ -118,8 +118,10 @@ pub struct PodJob {
     /// Attached, external input packet.
     #[serde(serialize_with = "serialize_hashmap")]
     pub input_packet: Packet,
-    /// Attached, external output directory.
-    pub output_dir: URI,
+    /// Attached, external output packet. Maps each output spec key to the external blob location
+    /// where the output should be written, giving full control over where each output lands.
+    #[serde(serialize_with = "serialize_hashmap")]
+    pub output_packet: HashMap<String, Blob>,
     /// Maximum allowable cores in fractional cores for the computation.
     pub cpu_limit: f32,
     /// Maximum allowable memory in bytes for the computation.
@@ -141,13 +143,14 @@ impl PodJob {
         annotation: Option<Annotation>,
         pod: Arc<Pod>,
         mut input_packet: Packet,
-        output_dir: URI,
+        output_packet: HashMap<String, Blob>,
         cpu_limit: f32,
         memory_limit: u64,
         env_vars: Option<HashMap<String, String>>,
         namespace_lookup: &HashMap<String, PathBuf>,
     ) -> Result<Self> {
         validate_packet("input".into(), &pod.input_spec, &input_packet)?;
+        validate_packet("output".into(), &pod.output_spec, &output_packet)?;
         input_packet = input_packet
             .iter()
             .map(|(stream_name, stream_input)| match stream_input {
@@ -171,7 +174,7 @@ impl PodJob {
             hash: String::new(),
             pod,
             input_packet,
-            output_dir,
+            output_packet,
             cpu_limit,
             memory_limit,
             env_vars,
@@ -223,15 +226,10 @@ impl PodResult {
         namespace_lookup: &HashMap<String, PathBuf>,
     ) -> Result<Self> {
         let output_packet = pod_job
-            .pod
-            .output_spec
+            .output_packet
             .iter()
-            .filter_map(|(packet_key, path_info)| {
-                let location = URI {
-                    namespace: pod_job.output_dir.namespace.clone(),
-                    path: pod_job.output_dir.path.join(&path_info.path),
-                };
-
+            .filter_map(|(packet_key, blob)| {
+                let location = blob.location.clone();
                 let local_location = match get(namespace_lookup, &location.namespace) {
                     Ok(root_path) => root_path.join(&location.path),
                     Err(error) => return Some(Err(error)),
